@@ -2,6 +2,7 @@ package com.Coritech.beans;
 
 import org.springframework.stereotype.Component;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -13,7 +14,7 @@ import jakarta.persistence.Table;
 @Entity
 @Table(name = "booking")
 public class Booking {
-	
+
 	@Id
 	   @GeneratedValue(strategy = GenerationType.AUTO)
 	   private int bookingId;
@@ -22,8 +23,16 @@ public class Booking {
 	   @ManyToOne
 	   private Journey journey;
 	   private int noOfTicketsBooked;
-	   private boolean isCancelled = false; 
-	   
+	   private boolean isCancelled = false;
+	   @Column(unique = true, length = 100)
+	   private String idempotencyKey;
+
+	   public String getIdempotencyKey() {
+		return idempotencyKey;
+	}
+	public void setIdempotencyKey(String idempotencyKey) {
+		this.idempotencyKey = idempotencyKey;
+	}
 	   public boolean isCancelled() {
 		return isCancelled;
 	}
