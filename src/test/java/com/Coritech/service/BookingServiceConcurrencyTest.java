@@ -21,17 +21,16 @@ import com.Coritech.repository.BookingRepository;
 import com.Coritech.repository.JourneyRepository;
 import com.Coritech.repository.UserRepository;
 
+import lombok.RequiredArgsConstructor;
+
 @SpringBootTest
+@RequiredArgsConstructor(onConstructor_ = @Autowired)
 class BookingServiceConcurrencyTest {
 
-	@Autowired
-	private BookingService bookingService;
-	@Autowired
-	private JourneyRepository journeyRepository;
-	@Autowired
-	private UserRepository userRepository;
-	@Autowired
-	private BookingRepository bookingRepository;
+	private final BookingService bookingService;
+	private final JourneyRepository journeyRepository;
+	private final UserRepository userRepository;
+	private final BookingRepository bookingRepository;
 
 	private int journeyId;
 	private int userId;

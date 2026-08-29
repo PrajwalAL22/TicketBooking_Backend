@@ -1,16 +1,18 @@
 package com.Coritech.service.impl;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.Coritech.beans.Journey;
 import com.Coritech.repository.JourneyRepository;
 import com.Coritech.service.JourneyService;
 
+import lombok.RequiredArgsConstructor;
+
 @Service
+@RequiredArgsConstructor
 public class JourneyServiceImpl implements JourneyService {
-	  @Autowired
-	    private JourneyRepository journeyRepository;
+
+	    private final JourneyRepository journeyRepository;
 
 	    @Override
 	    public int getTicketsRemainingForCity(String cityName) {

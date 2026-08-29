@@ -17,49 +17,62 @@ public class Journey {
 	@Id
 	@GeneratedValue(strategy = GenerationType.AUTO)
 	private int journeyId;
+
 	private String cityName;
-    private int ticketsRemaining;
-    @Version
-    private Integer version;
+
+	private int ticketsRemaining;
+
+	@Version
+	private Integer version;
+
 	public int getJourneyId() {
 		return journeyId;
 	}
+
 	public void setJourneyId(int journeyId) {
 		this.journeyId = journeyId;
 	}
+
 	public String getCityName() {
 		return cityName;
 	}
+
 	public void setCityName(String cityName) {
 		this.cityName = cityName;
 	}
+
 	public int getTicketsRemaining() {
 		return ticketsRemaining;
 	}
+
 	public void setTicketsRemaining(int ticketsRemaining) {
 		this.ticketsRemaining = ticketsRemaining;
 	}
+
 	public Integer getVersion() {
 		return version;
 	}
+
 	public void setVersion(Integer version) {
 		this.version = version;
 	}
+
 	public Journey(int journeyId, String cityName, int ticketsRemaining) {
 		super();
 		this.journeyId = journeyId;
 		this.cityName = cityName;
 		this.ticketsRemaining = ticketsRemaining;
 	}
+
 	public Journey() {
 		super();
 		// TODO Auto-generated constructor stub
 	}
+
 	@Override
 	public String toString() {
 		return "Journeys [journeyId=" + journeyId + ", cityName=" + cityName + ", ticketsRemaining=" + ticketsRemaining
 				+ "]";
 	}
-    
 
 }

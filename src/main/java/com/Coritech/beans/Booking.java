@@ -16,53 +16,70 @@ import jakarta.persistence.Table;
 public class Booking {
 
 	@Id
-	   @GeneratedValue(strategy = GenerationType.AUTO)
-	   private int bookingId;
-	   @ManyToOne
-	   private User user;
-	   @ManyToOne
-	   private Journey journey;
-	   private int noOfTicketsBooked;
-	   private boolean isCancelled = false;
-	   @Column(unique = true, length = 100)
-	   private String idempotencyKey;
+	@GeneratedValue(strategy = GenerationType.AUTO)
+	private int bookingId;
 
-	   public String getIdempotencyKey() {
+	@ManyToOne
+	private User user;
+
+	@ManyToOne
+	private Journey journey;
+
+	private int noOfTicketsBooked;
+
+	private boolean isCancelled = false;
+
+	@Column(unique = true, length = 100)
+	private String idempotencyKey;
+
+	public String getIdempotencyKey() {
 		return idempotencyKey;
 	}
+
 	public void setIdempotencyKey(String idempotencyKey) {
 		this.idempotencyKey = idempotencyKey;
 	}
-	   public boolean isCancelled() {
+
+	public boolean isCancelled() {
 		return isCancelled;
 	}
+
 	public void setCancelled(boolean isCancelled) {
 		this.isCancelled = isCancelled;
 	}
+
 	public int getBookingId() {
 		return bookingId;
 	}
+
 	public void setBookingId(int bookingId) {
 		this.bookingId = bookingId;
 	}
+
 	public User getUser() {
 		return user;
 	}
+
 	public void setUser(User user) {
 		this.user = user;
 	}
+
 	public Journey getJourney() {
 		return journey;
 	}
+
 	public void setJourney(Journey journey) {
 		this.journey = journey;
 	}
+
 	public int getNoOfTicketsBooked() {
 		return noOfTicketsBooked;
 	}
+
 	public void setNoOfTicketsBooked(int noOfTicketsBooked) {
 		this.noOfTicketsBooked = noOfTicketsBooked;
 	}
+
 	public Booking(int bookingId, User user, Journey journey, int noOfTicketsBooked) {
 		super();
 		this.bookingId = bookingId;
@@ -70,16 +87,16 @@ public class Booking {
 		this.journey = journey;
 		this.noOfTicketsBooked = noOfTicketsBooked;
 	}
+
 	public Booking() {
 		super();
 		// TODO Auto-generated constructor stub
 	}
+
 	@Override
 	public String toString() {
 		return "Booking [bookingId=" + bookingId + ", user=" + user + ", journey=" + journey + ", noOfTicketsBooked="
 				+ noOfTicketsBooked + "]";
 	}
-	   
-	   
 
 }

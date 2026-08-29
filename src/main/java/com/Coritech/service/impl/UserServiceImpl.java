@@ -1,17 +1,18 @@
 package com.Coritech.service.impl;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.Coritech.beans.User;
 import com.Coritech.repository.UserRepository;
 import com.Coritech.service.UserService;
 
+import lombok.RequiredArgsConstructor;
+
 @Service
+@RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
 
-	@Autowired
-    private UserRepository userRepository;
+	private final UserRepository userRepository;
 
     @Override
     public boolean register(String username, String password) {

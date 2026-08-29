@@ -1,6 +1,5 @@
 package com.Coritech.controller;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -11,12 +10,14 @@ import org.springframework.web.bind.annotation.RestController;
 import com.Coritech.beans.User;
 import com.Coritech.service.UserService;
 
+import lombok.RequiredArgsConstructor;
+
 @RestController
+@RequiredArgsConstructor
 @CrossOrigin(origins = "*", allowedHeaders = "*")
 public class UserController {
-	
-    @Autowired
-    private UserService userService;
+
+    private final UserService userService;
 
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestParam String username, @RequestParam String password) {

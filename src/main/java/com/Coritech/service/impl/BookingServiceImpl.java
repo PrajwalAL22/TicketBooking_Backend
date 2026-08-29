@@ -2,6 +2,7 @@ package com.Coritech.service.impl;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.ThreadLocalRandom;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
@@ -21,23 +22,26 @@ import com.Coritech.repository.JourneyRepository;
 import com.Coritech.repository.UserRepository;
 import com.Coritech.service.BookingService;
 
+import lombok.RequiredArgsConstructor;
+
 @Service
+@RequiredArgsConstructor
 public class BookingServiceImpl implements BookingService {
 
-	private static final int MAX_ATTEMPTS = 3;
+	private static final int MAX_ATTEMPTS = 8;
 
-	@Autowired
-	private JourneyRepository journeyRepository;
-	@Autowired
-	private BookingRepository bookingRepository;
-	@Autowired
-	private UserRepository userRepository;
+	private final JourneyRepository journeyRepository;
+	private final BookingRepository bookingRepository;
+	private final UserRepository userRepository;
 
 	// Self-injected proxy so each retry attempt below runs in its own fresh
 	// @Transactional (a call from bookTickets to attemptBooking on "this"
 	// would bypass the Spring transaction proxy entirely). Typed to the impl
 	// (not the BookingService interface) because attemptBooking/attemptCancel
 	// are internal retry helpers, not part of the public service contract.
+	// Kept as field injection (not a @RequiredArgsConstructor parameter):
+	// it's non-final and @Lazy specifically to break the circular
+	// dependency of a bean depending on its own proxy.
 	@Autowired
 	@Lazy
 	private BookingServiceImpl self;
@@ -55,6 +59,7 @@ public class BookingServiceImpl implements BookingService {
 					throw new BookingConflictException(
 							"Seats for journey " + journeyId + " were booked by someone else, please retry");
 				}
+				backoffBeforeRetry(attempt);
 			}
 		}
 		throw new BookingConflictException("Could not book journey " + journeyId + ", please retry");
@@ -109,7 +114,20 @@ public class BookingServiceImpl implements BookingService {
 					throw new BookingConflictException(
 							"Could not cancel booking " + bookingId + " due to concurrent updates, please retry");
 				}
+				backoffBeforeRetry(attempt);
 			}
+		}
+	}
+
+	// Small randomized (jittered) backoff between optimistic-lock retries, so
+	// competing threads don't immediately collide again on the very next
+	// attempt. Without this, a thread can exhaust MAX_ATTEMPTS purely from bad
+	// scheduling luck under heavy contention even while seats remain.
+	private void backoffBeforeRetry(int attempt) {
+		try {
+			Thread.sleep(ThreadLocalRandom.current().nextInt(5, 15 + attempt * 10));
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
 		}
 	}
 

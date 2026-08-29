@@ -2,7 +2,6 @@ package com.Coritech.controller;
 
 import java.util.List;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -19,15 +18,15 @@ import com.Coritech.exception.SeatsUnavailableException;
 import com.Coritech.repository.JourneyRepository;
 import com.Coritech.service.BookingService;
 
+import lombok.RequiredArgsConstructor;
 
 @RestController
+@RequiredArgsConstructor
 @CrossOrigin(origins = "*", allowedHeaders = "*")
 public class BookingController {
 
-	  @Autowired
-	    private BookingService bookingService;
-	    @Autowired
-	    private JourneyRepository journeyRepository;
+	    private final BookingService bookingService;
+	    private final JourneyRepository journeyRepository;
 
 	    @PostMapping("/book")
 	    public ResponseEntity<?> bookTickets(@RequestParam int userId, @RequestParam String cityName,

@@ -1,6 +1,5 @@
 package com.Coritech.controller;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -10,12 +9,14 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.Coritech.service.JourneyService;
 
+import lombok.RequiredArgsConstructor;
+
 @RestController
+@RequiredArgsConstructor
 @CrossOrigin(origins = "*", allowedHeaders = "*")
 public class JourneyController {
-	
-    @Autowired
-    private JourneyService journeyService;
+
+    private final JourneyService journeyService;
 
     @GetMapping("/journey")
     public ResponseEntity<?> getTicketsRemaining(@RequestParam String cityName) {
