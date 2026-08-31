@@ -15,6 +15,7 @@ import com.Coritech.beans.Booking;
 import com.Coritech.beans.Journey;
 import com.Coritech.beans.User;
 import com.Coritech.exception.BookingConflictException;
+import com.Coritech.exception.ForbiddenException;
 import com.Coritech.exception.ResourceNotFoundException;
 import com.Coritech.exception.SeatsUnavailableException;
 import com.Coritech.repository.BookingRepository;
@@ -47,7 +48,7 @@ public class BookingServiceImpl implements BookingService {
 	private BookingServiceImpl self;
 
 	@Override
-	public Booking bookTickets(int userId, int journeyId, int noOfTickets, String idempotencyKey) {
+	public Booking bookTickets(Long userId, Long journeyId, int noOfTickets, String idempotencyKey) {
 		if (noOfTickets <= 0) {
 			throw new IllegalArgumentException("noOfTickets must be positive");
 		}
@@ -66,7 +67,7 @@ public class BookingServiceImpl implements BookingService {
 	}
 
 	@Transactional
-	public Booking attemptBooking(int userId, int journeyId, int noOfTickets, String idempotencyKey) {
+	public Booking attemptBooking(Long userId, Long journeyId, int noOfTickets, String idempotencyKey) {
 		if (idempotencyKey != null && !idempotencyKey.isBlank()) {
 			Optional<Booking> existing = bookingRepository.findByIdempotencyKey(idempotencyKey);
 			if (existing.isPresent()) {
@@ -104,10 +105,10 @@ public class BookingServiceImpl implements BookingService {
 	}
 
 	@Override
-	public void cancelTickets(int bookingId) {
+	public void cancelTickets(Long userId, Long bookingId) {
 		for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
 			try {
-				self.attemptCancel(bookingId);
+				self.attemptCancel(userId, bookingId);
 				return;
 			} catch (ObjectOptimisticLockingFailureException conflict) {
 				if (attempt == MAX_ATTEMPTS) {
@@ -132,9 +133,13 @@ public class BookingServiceImpl implements BookingService {
 	}
 
 	@Transactional
-	public void attemptCancel(int bookingId) {
+	public void attemptCancel(Long userId, Long bookingId) {
 		Booking booking = bookingRepository.findById(bookingId)
 				.orElseThrow(() -> new ResourceNotFoundException("Booking not found: " + bookingId));
+
+		if (!booking.getUser().getUserId().equals(userId)) {
+			throw new ForbiddenException("You do not have permission to cancel booking " + bookingId);
+		}
 
 		if (booking.isCancelled()) {
 			// Already cancelled: no-op, so cancelling twice never double-refunds seats.
@@ -150,7 +155,7 @@ public class BookingServiceImpl implements BookingService {
 	}
 
 	@Override
-	public List<Booking> getTicketsBookedByUserForEachCity(int userId) {
+	public List<Booking> getTicketsBookedByUserForEachCity(Long userId) {
 		return bookingRepository.findByUserUserId(userId);
 	}
 

@@ -6,11 +6,11 @@ import com.Coritech.beans.Booking;
 
 public interface BookingService {
 
-	Booking bookTickets(int userId, int journeyId, int noOfTickets, String idempotencyKey);
+	Booking bookTickets(Long userId, Long journeyId, int noOfTickets, String idempotencyKey);
 
-	void cancelTickets(int bookingId);
+	void cancelTickets(Long userId, Long bookingId);
 
 	// Method to get List of tickets booked by User
-	List<Booking> getTicketsBookedByUserForEachCity(int userId);
+	List<Booking> getTicketsBookedByUserForEachCity(Long userId);
 
 }

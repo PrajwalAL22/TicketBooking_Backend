@@ -1,6 +1,7 @@
 package com.Coritech.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -17,6 +18,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import com.Coritech.beans.Booking;
 import com.Coritech.beans.Journey;
 import com.Coritech.beans.User;
+import com.Coritech.exception.ForbiddenException;
 import com.Coritech.repository.BookingRepository;
 import com.Coritech.repository.JourneyRepository;
 import com.Coritech.repository.UserRepository;
@@ -32,8 +34,8 @@ class BookingServiceConcurrencyTest {
 	private final UserRepository userRepository;
 	private final BookingRepository bookingRepository;
 
-	private int journeyId;
-	private int userId;
+	private Long journeyId;
+	private Long userId;
 
 	@BeforeEach
 	void setUp() {
@@ -105,10 +107,27 @@ class BookingServiceConcurrencyTest {
 	void cancellingTwiceIsIdempotentAndOnlyRefundsOnce() {
 		Booking booking = bookingService.bookTickets(userId, journeyId, 2, null);
 
-		bookingService.cancelTickets(booking.getBookingId());
-		bookingService.cancelTickets(booking.getBookingId());
+		bookingService.cancelTickets(userId, booking.getBookingId());
+		bookingService.cancelTickets(userId, booking.getBookingId());
 
 		Journey updated = journeyRepository.findById(journeyId).orElseThrow();
 		assertEquals(5, updated.getTicketsRemaining(), "cancelling an already-cancelled booking must not double-refund");
+	}
+
+	@Test
+	void cannotCancelSomeoneElsesBooking() {
+		Booking booking = bookingService.bookTickets(userId, journeyId, 2, null);
+
+		User otherUser = new User();
+		otherUser.setUsername("other-user-" + System.nanoTime());
+		otherUser.setPassword("pass");
+		otherUser = userRepository.save(otherUser);
+
+		Long otherUserId = otherUser.getUserId();
+		assertThrows(ForbiddenException.class,
+				() -> bookingService.cancelTickets(otherUserId, booking.getBookingId()));
+
+		Journey updated = journeyRepository.findById(journeyId).orElseThrow();
+		assertEquals(3, updated.getTicketsRemaining(), "a rejected cancel attempt must not refund seats");
 	}
 }

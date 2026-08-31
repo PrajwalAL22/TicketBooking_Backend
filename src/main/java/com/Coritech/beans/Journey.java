@@ -1,7 +1,5 @@
 package com.Coritech.beans;
 
-import org.springframework.stereotype.Component;
-
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -9,14 +7,13 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 
-@Component
 @Entity
 @Table(name = "journeys")
 public class Journey {
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.AUTO)
-	private int journeyId;
+	private Long journeyId;
 
 	private String cityName;
 
@@ -25,11 +22,11 @@ public class Journey {
 	@Version
 	private Integer version;
 
-	public int getJourneyId() {
+	public Long getJourneyId() {
 		return journeyId;
 	}
 
-	public void setJourneyId(int journeyId) {
+	public void setJourneyId(Long journeyId) {
 		this.journeyId = journeyId;
 	}
 
@@ -57,7 +54,7 @@ public class Journey {
 		this.version = version;
 	}
 
-	public Journey(int journeyId, String cityName, int ticketsRemaining) {
+	public Journey(Long journeyId, String cityName, int ticketsRemaining) {
 		super();
 		this.journeyId = journeyId;
 		this.cityName = cityName;
@@ -66,7 +63,6 @@ public class Journey {
 
 	public Journey() {
 		super();
-		// TODO Auto-generated constructor stub
 	}
 
 	@Override

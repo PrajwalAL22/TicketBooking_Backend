@@ -1,6 +1,6 @@
 package com.Coritech.beans;
 
-import org.springframework.stereotype.Component;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -8,24 +8,26 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
-@Component
 @Entity
 @Table(name = "user")
 public class User {
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.AUTO)
-	private int userId;
+	private Long userId;
 
 	private String username;
 
+	// Never serialize the password hash back out through any API response,
+	// even accidentally (e.g. a Booking's nested User).
+	@JsonIgnore
 	private String password;
 
-	public int getUserId() {
+	public Long getUserId() {
 		return userId;
 	}
 
-	public void setUserId(int userId) {
+	public void setUserId(Long userId) {
 		this.userId = userId;
 	}
 
@@ -47,10 +49,9 @@ public class User {
 
 	public User() {
 		super();
-		// TODO Auto-generated constructor stub
 	}
 
-	public User(int userId, String username, String password) {
+	public User(Long userId, String username, String password) {
 		super();
 		this.userId = userId;
 		this.username = username;

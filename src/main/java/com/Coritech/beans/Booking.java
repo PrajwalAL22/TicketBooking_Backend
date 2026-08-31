@@ -1,7 +1,5 @@
 package com.Coritech.beans;
 
-import org.springframework.stereotype.Component;
-
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -10,14 +8,13 @@ import jakarta.persistence.Id;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
-@Component
 @Entity
 @Table(name = "booking")
 public class Booking {
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.AUTO)
-	private int bookingId;
+	private Long bookingId;
 
 	@ManyToOne
 	private User user;
@@ -48,11 +45,11 @@ public class Booking {
 		this.isCancelled = isCancelled;
 	}
 
-	public int getBookingId() {
+	public Long getBookingId() {
 		return bookingId;
 	}
 
-	public void setBookingId(int bookingId) {
+	public void setBookingId(Long bookingId) {
 		this.bookingId = bookingId;
 	}
 
@@ -80,7 +77,7 @@ public class Booking {
 		this.noOfTicketsBooked = noOfTicketsBooked;
 	}
 
-	public Booking(int bookingId, User user, Journey journey, int noOfTicketsBooked) {
+	public Booking(Long bookingId, User user, Journey journey, int noOfTicketsBooked) {
 		super();
 		this.bookingId = bookingId;
 		this.user = user;
@@ -90,7 +87,6 @@ public class Booking {
 
 	public Booking() {
 		super();
-		// TODO Auto-generated constructor stub
 	}
 
 	@Override
