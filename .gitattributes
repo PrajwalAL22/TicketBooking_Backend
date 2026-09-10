@@ -1,0 +1,8 @@
+# mvnw must keep Unix line endings regardless of platform checkout settings
+# (core.autocrlf) — a CRLF shebang line breaks it inside Linux containers
+# (Docker builds, CI) with a cryptic "not found" error.
+mvnw text eol=lf
+*.sh text eol=lf
+
+mvnw.cmd text eol=crlf
+*.bat text eol=crlf

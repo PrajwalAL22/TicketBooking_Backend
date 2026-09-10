@@ -23,10 +23,12 @@ Goal: keep the UI in lockstep with each backend phase so the app is demoable end
 - **Conflict/failure feedback**: distinguish "seats sold out" (still valid response, e.g. 400) from "your booking already went through" (idempotent replay returns the original booking — show it as success, not an error) from a transient lock-contention retry-able error (e.g. 409) — show "high demand, please try again" with a retry button.
 
 ### Phase 2 — Security hardening
-- **Login flow rework**: backend stops returning the raw `User` object (with password) and instead returns a token (JWT). UI must store the token (memory or httpOnly-cookie pattern, not `localStorage` if avoidable) and attach it as `Authorization: Bearer <token>` on every subsequent request.
-- **Route guarding**: booking, cancellation, and "my tickets" views require a valid token — redirect to login if absent/expired.
-- **Logout**: must actually clear the stored token client-side (today it's a no-op on the backend, so the UI is likely faking this already — verify and align once backend implements it for real).
-- **Session expiry handling**: on a 401 from any authenticated call, clear local auth state and redirect to login with a "session expired" message.
+- **Login flow rework**: backend stops returning the raw `User` object (with password) and instead returns tokens. `POST /login` now returns `{ accessToken, refreshToken, username, userId }` — UI must store both (memory or httpOnly-cookie pattern, not `localStorage` if avoidable) and attach the **access token** as `Authorization: Bearer <accessToken>` on every subsequent request. Never send the refresh token as a Bearer token — the backend rejects it there by design.
+- **Access token is short-lived (5 min)**: the UI needs a refresh flow, not just a "redirect to login on 401." On a 401 from any authenticated call, before giving up: call `POST /refresh` with `{ refreshToken }`, and if it succeeds (`{ accessToken }`), retry the original request with the new access token. Only clear session and redirect to login if `/refresh` itself fails (expired/invalid refresh token, or the user was deleted). A sensible client-side pattern is a single shared "ensure valid access token" helper/interceptor that all API calls go through, rather than handling this ad hoc per call site.
+- **Refresh token is longer-lived (24h) but not renewed**: `/refresh` only returns a new access token — the refresh token itself keeps its original expiry. Once it expires, the user must log in again; there's no silent-forever-session behavior here by design.
+- **Route guarding**: booking, cancellation, and "my tickets" views require a valid (or refreshable) session — redirect to login only once both the access token is invalid and the refresh attempt has failed.
+- **Logout**: must actually clear both stored tokens client-side (today it's a no-op on the backend — stateless JWT, nothing to invalidate server-side — so the UI is fully responsible for discarding them).
+- **Session expiry handling**: only redirect to login after a failed refresh (see above), not on every bare 401 — a 401 alone just means "try `/refresh` first."
 - **CORS tightening**: once the backend restricts allowed origins, confirm whatever origin the frontend is served from (local dev, or a future redeploy) is on the allow-list before this ships.
 
 ### Phase 3 — API & architecture cleanup
@@ -52,7 +54,8 @@ Goal: keep the UI in lockstep with each backend phase so the app is demoable end
 | Sold out journey | 400 with message | Inline message on booking form, keep form open |
 | Duplicate submit (same idempotency key) | 200 with original booking | Treat as success, no duplicate booking shown |
 | Concurrent booking conflict (optimistic lock retry exhausted) | 409 | "High demand, please retry" + retry button |
-| Expired/invalid token | 401 | Clear session, redirect to login |
+| Expired/invalid access token | 401 | Attempt `/refresh`; retry the original call on success |
+| Expired/invalid refresh token (at `/refresh`) | 401 | Clear session, redirect to login |
 | Validation error | 400 with field errors | Inline field-level errors |
 | Rate limited (Phase 5) | 429 + Retry-After | Countdown/backoff message |
 

@@ -38,7 +38,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 		String token = authHeader.substring(BEARER_PREFIX.length());
 		try {
 			String username = jwtService.extractUsername(token);
-			if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+			// A refresh token is a validly-signed JWT too, but must never be
+			// accepted here — only at /refresh — or it would work as a
+			// long-lived access token for its entire 24h lifetime, defeating
+			// the point of a short-lived access token.
+			if (username != null && jwtService.isAccessToken(token)
+					&& SecurityContextHolder.getContext().getAuthentication() == null) {
 				UserDetails userDetails = userDetailsService.loadUserByUsername(username);
 				if (jwtService.isTokenValid(token, userDetails)) {
 					UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(

@@ -9,7 +9,7 @@ import jakarta.persistence.Version;
 
 @Entity
 @Table(name = "journeys")
-public class Journey {
+public class Journey extends Auditable {
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.AUTO)

@@ -10,7 +10,7 @@ import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "user")
-public class User {
+public class User extends Auditable {
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.AUTO)

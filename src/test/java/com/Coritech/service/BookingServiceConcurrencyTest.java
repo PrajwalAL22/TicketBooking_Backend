@@ -2,6 +2,7 @@ package com.Coritech.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -14,11 +15,15 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 
 import com.Coritech.beans.Booking;
 import com.Coritech.beans.Journey;
 import com.Coritech.beans.User;
 import com.Coritech.exception.ForbiddenException;
+import com.Coritech.outbox.OutboxEvent;
+import com.Coritech.outbox.OutboxEventRepository;
 import com.Coritech.repository.BookingRepository;
 import com.Coritech.repository.JourneyRepository;
 import com.Coritech.repository.UserRepository;
@@ -33,6 +38,7 @@ class BookingServiceConcurrencyTest {
 	private final JourneyRepository journeyRepository;
 	private final UserRepository userRepository;
 	private final BookingRepository bookingRepository;
+	private final OutboxEventRepository outboxEventRepository;
 
 	private Long journeyId;
 	private Long userId;
@@ -129,5 +135,38 @@ class BookingServiceConcurrencyTest {
 
 		Journey updated = journeyRepository.findById(journeyId).orElseThrow();
 		assertEquals(3, updated.getTicketsRemaining(), "a rejected cancel attempt must not refund seats");
+	}
+
+	@Test
+	void bookingAndCancellingRecordsOutboxEvents() {
+		Booking booking = bookingService.bookTickets(userId, journeyId, 2, null);
+		bookingService.cancelTickets(userId, booking.getBookingId());
+
+		List<OutboxEvent> events = outboxEventRepository.findAll().stream()
+				.filter(e -> booking.getBookingId().equals(e.getAggregateId()))
+				.toList();
+
+		assertTrue(events.stream().anyMatch(e -> "BookingConfirmed".equals(e.getEventType())),
+				"a BookingConfirmed outbox event should be recorded in the same transaction as the booking");
+		assertTrue(events.stream().anyMatch(e -> "BookingCancelled".equals(e.getEventType())),
+				"a BookingCancelled outbox event should be recorded in the same transaction as the cancellation");
+		assertTrue(events.stream().allMatch(e -> e.getPublishedAt() == null),
+				"events aren't published until the relay picks them up (disabled in tests)");
+	}
+
+	@Test
+	void getTicketsBookedByUserForEachCityIsPaginated() {
+		bookingService.bookTickets(userId, journeyId, 1, null);
+		bookingService.bookTickets(userId, journeyId, 1, null);
+		bookingService.bookTickets(userId, journeyId, 1, null);
+
+		Page<Booking> firstPage = bookingService.getTicketsBookedByUserForEachCity(userId, PageRequest.of(0, 2));
+
+		assertEquals(2, firstPage.getContent().size());
+		assertEquals(3, firstPage.getTotalElements());
+		assertEquals(2, firstPage.getTotalPages());
+
+		Page<Booking> secondPage = bookingService.getTicketsBookedByUserForEachCity(userId, PageRequest.of(1, 2));
+		assertEquals(1, secondPage.getContent().size());
 	}
 }

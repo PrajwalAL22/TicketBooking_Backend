@@ -9,16 +9,20 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.Coritech.service.JourneyService;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequiredArgsConstructor
 @Validated
+@Tag(name = "Journeys", description = "Public seat-availability lookup")
 public class JourneyController {
 
     private final JourneyService journeyService;
 
+    @Operation(summary = "Get remaining ticket count for a city")
     @GetMapping("/journey")
     public ResponseEntity<?> getTicketsRemaining(@RequestParam @NotBlank String cityName) {
         int ticketsRemaining = journeyService.getTicketsRemainingForCity(cityName);

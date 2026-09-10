@@ -1,7 +1,7 @@
 package com.Coritech.controller;
 
-import java.util.List;
-
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -20,17 +20,22 @@ import com.Coritech.repository.JourneyRepository;
 import com.Coritech.repository.UserRepository;
 import com.Coritech.service.BookingService;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequiredArgsConstructor
+@Tag(name = "Bookings", description = "Booking, cancellation, and history for the authenticated user")
 public class BookingController {
 
 	    private final BookingService bookingService;
 	    private final JourneyRepository journeyRepository;
 	    private final UserRepository userRepository;
 
+	    @Operation(summary = "Book tickets for a journey",
+	            description = "Idempotent when an idempotencyKey is supplied: repeat submissions with the same key return the original booking.")
 	    @PostMapping("/book")
 	    public ResponseEntity<BookingResponse> bookTickets(Authentication authentication,
 	            @Valid @RequestBody BookingRequest request) {
@@ -46,13 +51,17 @@ public class BookingController {
 	        return ResponseEntity.ok(toResponse(booking));
 	    }
 
+	    @Operation(summary = "List the authenticated user's bookings (paginated)",
+	            description = "Standard Spring Data page params: page, size, sort (e.g. ?page=0&size=20).")
 	    @GetMapping("/getTickets")
-	    public List<BookingResponse> getTicketsBookedByUserForEachCity(Authentication authentication) {
-	        return bookingService.getTicketsBookedByUserForEachCity(resolveUserId(authentication)).stream()
-	                .map(this::toResponse)
-	                .toList();
+	    public Page<BookingResponse> getTicketsBookedByUserForEachCity(Authentication authentication,
+	            Pageable pageable) {
+	        return bookingService.getTicketsBookedByUserForEachCity(resolveUserId(authentication), pageable)
+	                .map(this::toResponse);
 	    }
 
+	    @Operation(summary = "Cancel a booking",
+	            description = "Only the booking's owner may cancel it; cancelling an already-cancelled booking is a no-op.")
 	    @PostMapping("/cancell")
 	    public ResponseEntity<String> cancelTickets(Authentication authentication,
 	            @Valid @RequestBody CancelRequest request) {

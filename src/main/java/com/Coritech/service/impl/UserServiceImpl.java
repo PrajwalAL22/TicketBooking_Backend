@@ -1,5 +1,6 @@
 package com.Coritech.service.impl;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -24,8 +25,15 @@ public class UserServiceImpl implements UserService {
         User user = new User();
         user.setUsername(username);
         user.setPassword(passwordEncoder.encode(password));
-        userRepository.save(user);
-        return true;
+        try {
+            userRepository.save(user);
+            return true;
+        } catch (DataIntegrityViolationException duplicateUsername) {
+            // The findByUsername check above isn't race-safe on its own;
+            // the DB's unique constraint (uk_user_username) is the real
+            // guard against two concurrent registrations with the same name.
+            return false;
+        }
     }
 
     @Override
