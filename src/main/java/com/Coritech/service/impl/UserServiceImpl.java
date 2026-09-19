@@ -5,6 +5,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.Coritech.beans.User;
+import com.Coritech.exception.UsernameAlreadyExistsException;
 import com.Coritech.repository.UserRepository;
 import com.Coritech.service.UserService;
 
@@ -18,21 +19,20 @@ public class UserServiceImpl implements UserService {
 	private final PasswordEncoder passwordEncoder;
 
     @Override
-    public boolean register(String username, String password) {
+    public void register(String username, String password) {
         if (userRepository.findByUsername(username) != null) {
-            return false;
+            throw new UsernameAlreadyExistsException("Username already exists: " + username);
         }
         User user = new User();
         user.setUsername(username);
         user.setPassword(passwordEncoder.encode(password));
         try {
             userRepository.save(user);
-            return true;
         } catch (DataIntegrityViolationException duplicateUsername) {
             // The findByUsername check above isn't race-safe on its own;
             // the DB's unique constraint (uk_user_username) is the real
             // guard against two concurrent registrations with the same name.
-            return false;
+            throw new UsernameAlreadyExistsException("Username already exists: " + username);
         }
     }
 

@@ -64,9 +64,15 @@ public class SecurityConfig {
 			.csrf(csrf -> csrf.disable())
 			.cors(cors -> cors.configurationSource(corsConfigurationSource()))
 			.sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+			// Spring Security auto-registers its own POST /logout handler
+			// (session-invalidate-then-302-redirect) unless told not to —
+			// it was silently intercepting every call to /logout before it
+			// ever reached UserController.logout(), which never actually
+			// ran. Disabled so our own JSON-returning handler is reachable.
+			.logout(logout -> logout.disable())
 			.exceptionHandling(ex -> ex.authenticationEntryPoint(jwtAuthenticationEntryPoint))
 			.authorizeHttpRequests(auth -> auth
-					.requestMatchers("/register", "/login", "/refresh", "/journey").permitAll()
+					.requestMatchers("/register", "/login", "/refresh", "/journey", "/journeys").permitAll()
 					.requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info").permitAll()
 					.requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
 					.anyRequest().authenticated())

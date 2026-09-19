@@ -1,7 +1,8 @@
 package com.Coritech.controller;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
@@ -10,8 +11,13 @@ import com.Coritech.beans.User;
 import com.Coritech.dto.AccessTokenResponse;
 import com.Coritech.dto.AuthResponse;
 import com.Coritech.dto.LoginRequest;
+import com.Coritech.dto.MessageResponse;
 import com.Coritech.dto.RefreshRequest;
 import com.Coritech.dto.RegisterRequest;
+import com.Coritech.dto.UserProfileResponse;
+import com.Coritech.exception.InvalidCredentialsException;
+import com.Coritech.exception.InvalidTokenException;
+import com.Coritech.exception.ResourceNotFoundException;
 import com.Coritech.repository.UserRepository;
 import com.Coritech.security.JwtService;
 import com.Coritech.service.UserService;
@@ -33,47 +39,45 @@ public class UserController {
 
     @Operation(summary = "Register a new user")
     @PostMapping("/register")
-    public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest request) {
-        if (userService.register(request.getUsername(), request.getPassword())) {
-            return ResponseEntity.ok("Registration successful");
-        } else {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Username already exists");
-        }
+    public ResponseEntity<MessageResponse> register(@Valid @RequestBody RegisterRequest request) {
+        userService.register(request.getUsername(), request.getPassword());
+        return ResponseEntity.ok(new MessageResponse("Registration successful"));
     }
 
     @Operation(summary = "Log in",
             description = "Returns a short-lived access token (send as `Authorization: Bearer <accessToken>`) "
                     + "and a longer-lived refresh token (exchange at /refresh for a new access token once it expires).")
     @PostMapping("/login")
-    public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request) {
+    public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
         User user = userService.login(request.getUsername(), request.getPassword());
-        if (user != null) {
-            String accessToken = jwtService.generateAccessToken(user.getUsername());
-            String refreshToken = jwtService.generateRefreshToken(user.getUsername());
-            return ResponseEntity.ok(new AuthResponse(accessToken, refreshToken, user.getUsername(), user.getUserId()));
-        } else {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid username or password");
+        if (user == null) {
+            throw new InvalidCredentialsException("Invalid username or password");
         }
+        String accessToken = jwtService.generateAccessToken(user.getUsername());
+        String refreshToken = jwtService.generateRefreshToken(user.getUsername());
+        return ResponseEntity.ok(new AuthResponse(accessToken, refreshToken, user.getUsername(), user.getUserId()));
     }
 
     @Operation(summary = "Exchange a refresh token for a new access token",
             description = "The refresh token itself is not rotated/reissued — it keeps its original 24h expiry, "
                     + "after which the client must log in again.")
     @PostMapping("/refresh")
-    public ResponseEntity<?> refresh(@Valid @RequestBody RefreshRequest request) {
+    public ResponseEntity<AccessTokenResponse> refresh(@Valid @RequestBody RefreshRequest request) {
+        String refreshToken = request.getRefreshToken();
         String username;
         try {
-            String refreshToken = request.getRefreshToken();
             if (!jwtService.isRefreshToken(refreshToken)) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Not a refresh token");
+                throw new InvalidTokenException("Not a refresh token");
             }
             username = jwtService.extractUsername(refreshToken);
-        } catch (JwtException | IllegalArgumentException invalidToken) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid or expired refresh token");
+        } catch (JwtException | IllegalArgumentException malformedOrExpired) {
+            // Expired/malformed/tampered token: same outward response as any
+            // other invalid refresh token, not a 500.
+            throw new InvalidTokenException("Invalid or expired refresh token");
         }
 
         if (userRepository.findByUsername(username) == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid or expired refresh token");
+            throw new InvalidTokenException("Invalid or expired refresh token");
         }
 
         return ResponseEntity.ok(new AccessTokenResponse(jwtService.generateAccessToken(username)));
@@ -81,12 +85,24 @@ public class UserController {
 
     @Operation(summary = "Log out", description = "Stateless JWT: nothing is invalidated server-side, the client just discards its tokens.")
     @PostMapping("/logout")
-    public ResponseEntity<?> logout() {
+    public ResponseEntity<MessageResponse> logout() {
         // Stateless JWT: there's no server-side session to invalidate, so this
         // is just a client-facing confirmation — the client is responsible for
         // discarding both tokens. (Requires a valid access token to reach at
         // all, since it isn't in the permitAll list in SecurityConfig.)
-        return ResponseEntity.ok("Logged out successfully");
+        return ResponseEntity.ok(new MessageResponse("Logged out successfully"));
+    }
+
+    @Operation(summary = "Get the authenticated user's profile",
+            description = "Lets the client recover \"who is logged in\" from a stored access token alone, "
+                    + "without having to separately persist the username/userId returned at login.")
+    @GetMapping("/me")
+    public ResponseEntity<UserProfileResponse> me(Authentication authentication) {
+        User user = userRepository.findByUsername(authentication.getName());
+        if (user == null) {
+            throw new ResourceNotFoundException("Authenticated user not found: " + authentication.getName());
+        }
+        return ResponseEntity.ok(new UserProfileResponse(user.getUserId(), user.getUsername()));
     }
 
 }

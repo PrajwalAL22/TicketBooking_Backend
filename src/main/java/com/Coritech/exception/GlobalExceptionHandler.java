@@ -44,6 +44,23 @@ public class GlobalExceptionHandler {
 		return build(HttpStatus.FORBIDDEN, ex.getMessage(), request);
 	}
 
+	@ExceptionHandler(UsernameAlreadyExistsException.class)
+	public ResponseEntity<ErrorResponse> handleUsernameTaken(UsernameAlreadyExistsException ex,
+			HttpServletRequest request) {
+		return build(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+	}
+
+	@ExceptionHandler(InvalidCredentialsException.class)
+	public ResponseEntity<ErrorResponse> handleInvalidCredentials(InvalidCredentialsException ex,
+			HttpServletRequest request) {
+		return build(HttpStatus.UNAUTHORIZED, ex.getMessage(), request);
+	}
+
+	@ExceptionHandler(InvalidTokenException.class)
+	public ResponseEntity<ErrorResponse> handleInvalidToken(InvalidTokenException ex, HttpServletRequest request) {
+		return build(HttpStatus.UNAUTHORIZED, ex.getMessage(), request);
+	}
+
 	@ExceptionHandler(IllegalArgumentException.class)
 	public ResponseEntity<ErrorResponse> handleIllegalArgument(IllegalArgumentException ex,
 			HttpServletRequest request) {

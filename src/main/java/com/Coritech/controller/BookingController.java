@@ -15,6 +15,7 @@ import com.Coritech.beans.User;
 import com.Coritech.dto.BookingRequest;
 import com.Coritech.dto.BookingResponse;
 import com.Coritech.dto.CancelRequest;
+import com.Coritech.dto.MessageResponse;
 import com.Coritech.exception.ResourceNotFoundException;
 import com.Coritech.repository.JourneyRepository;
 import com.Coritech.repository.UserRepository;
@@ -63,10 +64,10 @@ public class BookingController {
 	    @Operation(summary = "Cancel a booking",
 	            description = "Only the booking's owner may cancel it; cancelling an already-cancelled booking is a no-op.")
 	    @PostMapping("/cancell")
-	    public ResponseEntity<String> cancelTickets(Authentication authentication,
+	    public ResponseEntity<MessageResponse> cancelTickets(Authentication authentication,
 	            @Valid @RequestBody CancelRequest request) {
 	        bookingService.cancelTickets(resolveUserId(authentication), request.getBookingId());
-	        return ResponseEntity.ok("Tickets cancelled successfully");
+	        return ResponseEntity.ok(new MessageResponse("Tickets cancelled successfully"));
 	    }
 
 	    // Authenticated username (from the validated JWT) -> userId, so

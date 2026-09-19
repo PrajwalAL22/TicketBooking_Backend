@@ -4,7 +4,9 @@ import com.Coritech.beans.User;
 
 public interface UserService {
 
-	boolean register(String username, String password);
+	// Throws UsernameAlreadyExistsException rather than returning a sentinel,
+	// consistent with how BookingService signals business-rule failures.
+	void register(String username, String password);
 
 	User login(String username, String password);
 

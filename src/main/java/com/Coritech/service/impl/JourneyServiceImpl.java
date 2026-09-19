@@ -1,5 +1,7 @@
 package com.Coritech.service.impl;
 
+import java.util.List;
+
 import org.springframework.stereotype.Service;
 
 import com.Coritech.beans.Journey;
@@ -22,5 +24,10 @@ public class JourneyServiceImpl implements JourneyService {
 	        } else {
 	            return -1; // Indicate city not found
 	        }
+	    }
+
+	    @Override
+	    public List<Journey> getAllJourneys() {
+	        return journeyRepository.findAll();
 	    }
 }

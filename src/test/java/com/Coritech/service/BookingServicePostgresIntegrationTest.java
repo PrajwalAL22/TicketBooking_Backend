@@ -1,7 +1,7 @@
 package com.Coritech.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.concurrent.CountDownLatch;
@@ -20,6 +20,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 
 import com.Coritech.beans.Journey;
 import com.Coritech.beans.User;
+import com.Coritech.exception.UsernameAlreadyExistsException;
 import com.Coritech.repository.JourneyRepository;
 import com.Coritech.repository.UserRepository;
 import com.Coritech.service.impl.UserServiceImpl;
@@ -98,8 +99,9 @@ class BookingServicePostgresIntegrationTest {
 	void duplicateUsernameRegistrationIsRejectedByRealDbConstraint() {
 		String username = "pg-it-dup-user-" + System.nanoTime();
 
-		assertTrue(userService.register(username, "password123"), "first registration should succeed");
-		assertFalse(userService.register(username, "differentPassword456"),
+		userService.register(username, "password123");
+		assertThrows(UsernameAlreadyExistsException.class,
+				() -> userService.register(username, "differentPassword456"),
 				"second registration with the same username must be rejected by uk_user_username");
 	}
 
