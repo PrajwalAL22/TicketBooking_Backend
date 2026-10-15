@@ -113,7 +113,7 @@ public class BookingServiceImpl implements BookingService {
 			Booking saved = bookingRepository.saveAndFlush(booking);
 			log.info("Booked {} ticket(s) on journey {} for user {} (booking {})", noOfTickets, journeyId, userId,
 					saved.getBookingId());
-			recordOutboxEvent("BookingConfirmed", saved);
+			recordOutboxEvent("BookingConfirmed", saved, 0);
 			return saved;
 		} catch (DataIntegrityViolationException duplicateKey) {
 			// Another concurrent request with the same idempotency key won the race.
@@ -122,10 +122,13 @@ public class BookingServiceImpl implements BookingService {
 	}
 
 	@Override
-	public void cancelTickets(Long userId, Long bookingId) {
+	public void cancelTickets(Long userId, Long bookingId, Integer noOfTickets) {
+		if (noOfTickets != null && noOfTickets <= 0) {
+			throw new IllegalArgumentException("noOfTickets must be positive");
+		}
 		for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
 			try {
-				self.attemptCancel(userId, bookingId);
+				self.attemptCancel(userId, bookingId, noOfTickets);
 				return;
 			} catch (ObjectOptimisticLockingFailureException conflict) {
 				if (attempt == MAX_ATTEMPTS) {
@@ -150,7 +153,7 @@ public class BookingServiceImpl implements BookingService {
 	}
 
 	@Transactional
-	public void attemptCancel(Long userId, Long bookingId) {
+	public void attemptCancel(Long userId, Long bookingId, Integer noOfTickets) {
 		Booking booking = bookingRepository.findById(bookingId)
 				.orElseThrow(() -> new ResourceNotFoundException("Booking not found: " + bookingId));
 
@@ -158,20 +161,35 @@ public class BookingServiceImpl implements BookingService {
 			throw new ForbiddenException("You do not have permission to cancel booking " + bookingId);
 		}
 
-		if (booking.isCancelled()) {
-			// Already cancelled: no-op, so cancelling twice never double-refunds seats.
-			return;
+		int active = booking.getNoOfTicketsActive();
+		int toCancel;
+		if (noOfTickets == null) {
+			if (active == 0) {
+				// Already fully cancelled: no-op, so cancelling twice never double-refunds seats.
+				return;
+			}
+			toCancel = active;
+		} else {
+			if (noOfTickets > active) {
+				throw new IllegalArgumentException("Cannot cancel " + noOfTickets + " ticket(s): booking " + bookingId
+						+ " only has " + active + " active ticket(s)");
+			}
+			toCancel = noOfTickets;
 		}
 
+		// The journey's @Version is what serializes concurrent cancels of the
+		// same booking: both write the journey, so the loser's flush fails and
+		// retries against freshly-read state.
 		Journey journey = booking.getJourney();
-		journey.setTicketsRemaining(journey.getTicketsRemaining() + booking.getNoOfTicketsBooked());
+		journey.setTicketsRemaining(journey.getTicketsRemaining() + toCancel);
 		journeyRepository.saveAndFlush(journey);
 
-		booking.setCancelled(true);
+		booking.setNoOfTicketsCancelled(booking.getNoOfTicketsCancelled() + toCancel);
+		booking.setCancelled(booking.getNoOfTicketsActive() == 0);
 		bookingRepository.save(booking);
-		log.info("Cancelled booking {} for user {}, refunded {} seat(s) to journey {}", bookingId, userId,
-				booking.getNoOfTicketsBooked(), journey.getJourneyId());
-		recordOutboxEvent("BookingCancelled", booking);
+		log.info("Cancelled {} ticket(s) of booking {} for user {} ({} still active), refunded to journey {}", toCancel,
+				bookingId, userId, booking.getNoOfTicketsActive(), journey.getJourneyId());
+		recordOutboxEvent("BookingCancelled", booking, toCancel);
 	}
 
 	// Writes the outbox row in the same transaction as the business change
@@ -179,9 +197,10 @@ public class BookingServiceImpl implements BookingService {
 	// be committed without the change, or vice versa. If serialization fails
 	// here, the whole transaction (booking included) rolls back rather than
 	// silently dropping the event.
-	private void recordOutboxEvent(String eventType, Booking booking) {
+	private void recordOutboxEvent(String eventType, Booking booking, int ticketsCancelledInThisEvent) {
 		BookingEventPayload payload = new BookingEventPayload(booking.getBookingId(), booking.getUser().getUserId(),
-				booking.getJourney().getJourneyId(), booking.getNoOfTicketsBooked(), booking.isCancelled());
+				booking.getJourney().getJourneyId(), booking.getNoOfTicketsBooked(), booking.getNoOfTicketsCancelled(),
+				ticketsCancelledInThisEvent, booking.isCancelled());
 		String json;
 		try {
 			json = objectMapper.writeValueAsString(payload);

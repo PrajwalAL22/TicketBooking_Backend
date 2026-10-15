@@ -1,6 +1,7 @@
 package com.Coritech.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -118,6 +119,117 @@ class BookingServiceConcurrencyTest {
 
 		Journey updated = journeyRepository.findById(journeyId).orElseThrow();
 		assertEquals(5, updated.getTicketsRemaining(), "cancelling an already-cancelled booking must not double-refund");
+	}
+
+	@Test
+	void partialCancelRefundsOnlyThoseTicketsAndKeepsBookingActive() {
+		Booking booking = bookingService.bookTickets(userId, journeyId, 4, null);
+
+		bookingService.cancelTickets(userId, booking.getBookingId(), 1);
+
+		Booking after = bookingRepository.findById(booking.getBookingId()).orElseThrow();
+		assertEquals(4, after.getNoOfTicketsBooked(), "original booked count is preserved as history");
+		assertEquals(1, after.getNoOfTicketsCancelled());
+		assertEquals(3, after.getNoOfTicketsActive());
+		assertFalse(after.isCancelled(), "booking is only fully cancelled once no active tickets remain");
+		assertEquals(2, journeyRepository.findById(journeyId).orElseThrow().getTicketsRemaining(),
+				"5 - 4 booked + 1 refunded");
+	}
+
+	@Test
+	void partialCancelsAccumulateAndFinalOneMarksBookingCancelled() {
+		Booking booking = bookingService.bookTickets(userId, journeyId, 3, null);
+
+		bookingService.cancelTickets(userId, booking.getBookingId(), 1);
+		bookingService.cancelTickets(userId, booking.getBookingId(), 2);
+
+		Booking after = bookingRepository.findById(booking.getBookingId()).orElseThrow();
+		assertEquals(3, after.getNoOfTicketsCancelled());
+		assertTrue(after.isCancelled());
+		assertEquals(5, journeyRepository.findById(journeyId).orElseThrow().getTicketsRemaining());
+
+		// A full cancel on an already fully-cancelled booking stays a no-op.
+		bookingService.cancelTickets(userId, booking.getBookingId());
+		assertEquals(5, journeyRepository.findById(journeyId).orElseThrow().getTicketsRemaining());
+	}
+
+	@Test
+	void fullCancelAfterPartialCancelRefundsOnlyTheRemainingTickets() {
+		Booking booking = bookingService.bookTickets(userId, journeyId, 4, null);
+
+		bookingService.cancelTickets(userId, booking.getBookingId(), 1);
+		bookingService.cancelTickets(userId, booking.getBookingId());
+
+		Booking after = bookingRepository.findById(booking.getBookingId()).orElseThrow();
+		assertEquals(4, after.getNoOfTicketsCancelled());
+		assertTrue(after.isCancelled());
+		assertEquals(5, journeyRepository.findById(journeyId).orElseThrow().getTicketsRemaining(),
+				"the 1 already-refunded ticket must not be refunded a second time");
+	}
+
+	@Test
+	void cancellingMoreThanActiveTicketsIsRejectedWithoutRefunding() {
+		Booking booking = bookingService.bookTickets(userId, journeyId, 2, null);
+		bookingService.cancelTickets(userId, booking.getBookingId(), 1);
+
+		assertThrows(IllegalArgumentException.class,
+				() -> bookingService.cancelTickets(userId, booking.getBookingId(), 2));
+		assertThrows(IllegalArgumentException.class,
+				() -> bookingService.cancelTickets(userId, booking.getBookingId(), 0));
+
+		Booking after = bookingRepository.findById(booking.getBookingId()).orElseThrow();
+		assertEquals(1, after.getNoOfTicketsCancelled());
+		assertEquals(4, journeyRepository.findById(journeyId).orElseThrow().getTicketsRemaining());
+	}
+
+	@Test
+	void partialCancelRecordsOutboxEventWithCancelledCount() {
+		Booking booking = bookingService.bookTickets(userId, journeyId, 3, null);
+		bookingService.cancelTickets(userId, booking.getBookingId(), 2);
+
+		OutboxEvent cancelEvent = outboxEventRepository.findAll().stream()
+				.filter(e -> booking.getBookingId().equals(e.getAggregateId()))
+				.filter(e -> "BookingCancelled".equals(e.getEventType()))
+				.findFirst().orElseThrow();
+
+		assertTrue(cancelEvent.getPayload().contains("\"ticketsCancelledInThisEvent\":2"), cancelEvent.getPayload());
+		assertTrue(cancelEvent.getPayload().contains("\"cancelled\":false"), cancelEvent.getPayload());
+	}
+
+	@Test
+	void concurrentPartialCancelsNeverRefundMoreThanBooked() throws InterruptedException {
+		Booking booking = bookingService.bookTickets(userId, journeyId, 5, null);
+		int threadCount = 10;
+		ExecutorService executor = Executors.newFixedThreadPool(threadCount);
+		CountDownLatch ready = new CountDownLatch(threadCount);
+		CountDownLatch start = new CountDownLatch(1);
+		AtomicInteger successCount = new AtomicInteger();
+
+		for (int i = 0; i < threadCount; i++) {
+			executor.submit(() -> {
+				ready.countDown();
+				try {
+					start.await();
+					bookingService.cancelTickets(userId, booking.getBookingId(), 1);
+					successCount.incrementAndGet();
+				} catch (InterruptedException e) {
+					Thread.currentThread().interrupt();
+				} catch (Exception expectedOnceNothingIsLeftToCancel) {
+					// IllegalArgumentException once all 5 tickets are cancelled.
+				}
+			});
+		}
+
+		ready.await();
+		start.countDown();
+		executor.shutdown();
+		assertTrue(executor.awaitTermination(10, TimeUnit.SECONDS));
+
+		assertEquals(5, successCount.get(), "exactly the 5 booked tickets can be cancelled, never more");
+		Booking after = bookingRepository.findById(booking.getBookingId()).orElseThrow();
+		assertEquals(5, after.getNoOfTicketsCancelled());
+		assertEquals(5, journeyRepository.findById(journeyId).orElseThrow().getTicketsRemaining(),
+				"journey seats end at exactly the original 5: no over-refund");
 	}
 
 	@Test

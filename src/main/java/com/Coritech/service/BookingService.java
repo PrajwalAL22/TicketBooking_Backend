@@ -9,7 +9,14 @@ public interface BookingService {
 
 	Booking bookTickets(Long userId, Long journeyId, int noOfTickets, String idempotencyKey);
 
-	void cancelTickets(Long userId, Long bookingId);
+	// noOfTickets == null cancels every still-active ticket on the booking
+	// (idempotent: a no-op once fully cancelled). An explicit count cancels
+	// just that many and is not idempotent — each call cancels more.
+	void cancelTickets(Long userId, Long bookingId, Integer noOfTickets);
+
+	default void cancelTickets(Long userId, Long bookingId) {
+		cancelTickets(userId, bookingId, null);
+	}
 
 	Page<Booking> getTicketsBookedByUserForEachCity(Long userId, Pageable pageable);
 

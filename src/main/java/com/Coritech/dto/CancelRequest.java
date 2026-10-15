@@ -13,4 +13,8 @@ public class CancelRequest {
 	@Positive(message = "bookingId must be positive")
 	private Long bookingId;
 
+	// Optional: omit to cancel every still-active ticket on the booking.
+	@Positive(message = "noOfTickets must be positive")
+	private Integer noOfTickets;
+
 }

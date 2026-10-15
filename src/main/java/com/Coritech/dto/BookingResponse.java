@@ -11,6 +11,7 @@ public class BookingResponse {
 	private Long journeyId;
 	private String cityName;
 	private int noOfTicketsBooked;
+	private int noOfTicketsCancelled;
 	private boolean cancelled;
 	private String idempotencyKey;
 

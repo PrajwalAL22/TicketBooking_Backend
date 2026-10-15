@@ -24,6 +24,11 @@ public class Booking extends Auditable {
 
 	private int noOfTicketsBooked;
 
+	// Tickets cancelled so far (partial cancellations accumulate here);
+	// noOfTicketsBooked stays the original count so history is preserved.
+	private int noOfTicketsCancelled = 0;
+
+	// True only once the booking is *fully* cancelled (nothing left active).
 	private boolean isCancelled = false;
 
 	@Column(unique = true, length = 100)
@@ -75,6 +80,18 @@ public class Booking extends Auditable {
 
 	public void setNoOfTicketsBooked(int noOfTicketsBooked) {
 		this.noOfTicketsBooked = noOfTicketsBooked;
+	}
+
+	public int getNoOfTicketsCancelled() {
+		return noOfTicketsCancelled;
+	}
+
+	public void setNoOfTicketsCancelled(int noOfTicketsCancelled) {
+		this.noOfTicketsCancelled = noOfTicketsCancelled;
+	}
+
+	public int getNoOfTicketsActive() {
+		return noOfTicketsBooked - noOfTicketsCancelled;
 	}
 
 	public Booking(Long bookingId, User user, Journey journey, int noOfTicketsBooked) {

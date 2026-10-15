@@ -20,6 +20,7 @@ Goal: keep the UI in lockstep with each backend phase so the app is demoable end
 ### Phase 1 — Idempotent, concurrency-safe booking
 - **Idempotency key generation**: on opening the booking form (or on submit), generate a client-side UUID and send it as the idempotency key with the `/book` request. Persist it in component state so a retry (network failure, double-click) reuses the same key rather than generating a new one.
 - **Booking button**: disable immediately on click until the request resolves, to reduce (not replace — the key does that) accidental double submits.
+- **Partial cancellation**: `POST /cancell` accepts an optional `noOfTickets` to cancel just some of a booking's tickets (omit it to cancel everything still active). `BookingResponse` gains `noOfTicketsCancelled`; show tickets still active as `noOfTicketsBooked - noOfTicketsCancelled`, and treat `cancelled: true` as *fully* cancelled only. Unlike a full cancel, a partial cancel is not idempotent — disable the button while in flight, and cap the input at the active ticket count (the backend returns 400 if exceeded).
 - **Conflict/failure feedback**: distinguish "seats sold out" (still valid response, e.g. 400) from "your booking already went through" (idempotent replay returns the original booking — show it as success, not an error) from a transient lock-contention retry-able error (e.g. 409) — show "high demand, please try again" with a retry button.
 
 ### Phase 2 — Security hardening

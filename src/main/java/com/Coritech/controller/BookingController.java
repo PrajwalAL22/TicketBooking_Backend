@@ -61,13 +61,18 @@ public class BookingController {
 	                .map(this::toResponse);
 	    }
 
-	    @Operation(summary = "Cancel a booking",
-	            description = "Only the booking's owner may cancel it; cancelling an already-cancelled booking is a no-op.")
+	    @Operation(summary = "Cancel a booking, in full or in part",
+	            description = "Only the booking's owner may cancel it. Omit noOfTickets to cancel every still-active ticket "
+	                    + "(idempotent: a no-op once fully cancelled); pass noOfTickets to cancel just that many "
+	                    + "(rejected with 400 if it exceeds the tickets still active; not idempotent, each call cancels more).")
 	    @PostMapping("/cancell")
 	    public ResponseEntity<MessageResponse> cancelTickets(Authentication authentication,
 	            @Valid @RequestBody CancelRequest request) {
-	        bookingService.cancelTickets(resolveUserId(authentication), request.getBookingId());
-	        return ResponseEntity.ok(new MessageResponse("Tickets cancelled successfully"));
+	        bookingService.cancelTickets(resolveUserId(authentication), request.getBookingId(),
+	                request.getNoOfTickets());
+	        String message = request.getNoOfTickets() == null ? "Tickets cancelled successfully"
+	                : request.getNoOfTickets() + " ticket(s) cancelled successfully";
+	        return ResponseEntity.ok(new MessageResponse(message));
 	    }
 
 	    // Authenticated username (from the validated JWT) -> userId, so
@@ -87,6 +92,7 @@ public class BookingController {
 	                .journeyId(booking.getJourney().getJourneyId())
 	                .cityName(booking.getJourney().getCityName())
 	                .noOfTicketsBooked(booking.getNoOfTicketsBooked())
+	                .noOfTicketsCancelled(booking.getNoOfTicketsCancelled())
 	                .cancelled(booking.isCancelled())
 	                .idempotencyKey(booking.getIdempotencyKey())
 	                .build();
